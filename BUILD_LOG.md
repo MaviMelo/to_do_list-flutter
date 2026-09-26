@@ -174,3 +174,88 @@ para verificação.
 ### Current Status
 
 In progress (build do APK em andamento)
+
+> **Atualização Entrada 03:** build concluído com sucesso após 3 correções:
+> (a) JDK completo instalado (`openjdk-21-jdk-headless`, faltava `jlink`);
+> (b) AGP 8.1.0 → 8.3.2 + Gradle 8.3 → 8.7 — o `jmod create --target-platform
+> android` do AGP antigo gerava módulo malformado com o jlink do JDK 21
+> ("platformString missing delimiter"); (c) core library desugaring habilitado
+> (`desugar_jdk_libs:2.1.4`) exigido pelo plugin de notificações.
+> APK instalado no `todo_emulator` e validado por screenshots: lista com
+> checkbox funcional (marca, risca e reordena), tela de categorias com cores
+> distintas (roxo/rosa/vermelho/azul), editor carregando tarefa existente,
+> data picker nativo, nova tarefa e categoria criadas via UI. Status: **Completed**.
+
+---
+
+## Entrada 04 — 2026-09-26
+
+### Prompt / Request
+
+Usuário reportou divergências contra o PROMPT.md após validar a Entrada 03:
+"Botão de criar tarefas sem título; sem opção de fechar/sair do app; na lista de
+tarefas não tem filtro por categorias nem as tarefas não mostram suas descrições.
+Confira se atende o PROMPT.md." Durante a correção, reportou também: "botão de
+criar categoria sem título". Perguntou ainda sobre hot reload vs rebuild.
+
+### Decision Summary
+
+- **Filtros na UI (Screen 1 do PROMPT.md):** barra de filtros abaixo da AppBar
+  com `ChoiceChip`s — status (Todas/Pendentes/Concluídas) e categoria (com dot
+  colorido) — conectando aos `setFilter`/`setCategoryFilter` que já existiam no
+  `TodoStore` mas não eram chamados por nenhuma tela.
+- **Sair do app:** "Sair" na AppBar (ícone `exit_to_app`) + `AlertDialog` de
+  confirmação + `SystemNavigator.pop()` — espelha o comportamento do KMP; sair
+  de verdade encerra a atividade (o usuário volta ao launcher).
+- **FABs com título:** `FloatingActionButton.extended` com label ("Nova tarefa"
+  na lista, "Nova categoria" em categorias) — ícone alone não comunica a ação.
+- **Descrição na lista:** `subtitle` do `ListTile` em `Column` — descrição
+  (máx. 2 linhas) + linha com dot/nome da categoria e vencimento.
+- **Botão "Categorias" rotulado:** usuário editou o arquivo adicionando
+  `title:` ao `IconButton` (parâmetro inexistente — não compila); corrigido
+  para `TextButton.icon` com `label: Text('Categorias')`.
+- **FK pragma (achado da verificação independente):** sqflite não habilita
+  `foreign_keys` por padrão — sem o `onConfigure`, o `ON DELETE SET NULL` do
+  schema nunca disparava ao excluir categoria em uso (categoryId óbvio ficava
+  órfão no banco). Corrigido com `PRAGMA foreign_keys = ON` no `_open()`.
+- **Hot reload vs rebuild:** mudanças em `.dart` são a quente via `flutter run`
+  (`r`/`R` no terminal); o fluxo build + `adb install` usado aqui exige ciclo
+  completo por alteração — por isso as correções só apareceram após rebuild.
+
+### Actions Performed
+
+- `lib/todo_database.dart`: `onConfigure` com `PRAGMA foreign_keys = ON`.
+- `lib/ui/task_list_screen.dart`: `_FilterBar` (chips de status + categoria),
+  descrição no `TaskRow`, `FloatingActionButton.extended` "Nova tarefa",
+  "Sair" na AppBar com diálogo + `SystemNavigator.pop()`,
+  `TextButton.icon` "Categorias".
+- `lib/ui/categories_screen.dart`: `FloatingActionButton.extended` "Nova categoria".
+- `flutter analyze`: No issues found. `flutter build apk --debug` OK (11.4s / 9.5s).
+- APK reinstalado no `todo_emulator` e validado por screenshots: chips de
+  status e categoria visíveis e funcionais (filtro esvazia a lista
+  corretamente), descrição "Master e Visa." na tarefa, FABs rotulados, botão
+  "Categorias" com texto, diálogo "Sair" encerrando para o launcher, e
+  exclusão de categoria em uso deixando a tarefa sem categoria (FK pragma).
+
+### Result
+
+Todas as divergências corrigidas e validadas no emulador. App atende os
+critérios de aceitação do PROMPT.md (seção 20), incluindo filtros por status
+e categoria, opção de sair, descrições na lista e integridade referencial.
+
+### Problems / Errors
+
+1. **Edição manual do usuário não compilava:** `IconButton(title: ...)` — o
+   parâmetro não existe no `IconButton`; detectado pelo analyze e corrigido
+   com `TextButton.icon`.
+2. **`pm clear` derrubou a atividade durante o teste:** o app sumia após a
+   splash (janela sem input channel), simulando crash; relançamento com
+   `am start` resolveu — não era bug de código.
+
+### Fixes Attempted
+
+- Fixes 1–2 acima aplicados; nenhum problema de código pendente.
+
+### Current Status
+
+Completed

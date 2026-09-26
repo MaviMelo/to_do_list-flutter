@@ -21,6 +21,11 @@ class TodoDatabase {
     return openDatabase(
       p.join(dir, _dbName),
       version: _dbVersion,
+      // sqflite não habilita FK por padrão: sem isto, ON DELETE SET NULL
+      // nunca dispara ao excluir categoria em uso.
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE Category (

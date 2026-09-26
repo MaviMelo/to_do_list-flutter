@@ -54,10 +54,11 @@ class CategoriesScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         tooltip: 'Nova categoria',
         onPressed: () => _addDialog(context),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Nova categoria'),
       ),
     );
   }
